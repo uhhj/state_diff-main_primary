@@ -1,0 +1,15 @@
+data/pushl_dataset/
+data/*.zip
+media/
+outputs/
+temp/
+*.log
+*.pth
+*.pt
+*.ckpt
+__pycache__/
+*.pyc
+*.pyo
+.ipynb_checkpoints/
+.DS_Store
+Thumbs.db
