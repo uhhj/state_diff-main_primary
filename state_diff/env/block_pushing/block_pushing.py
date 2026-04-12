@@ -493,6 +493,31 @@ class BlockPush(gym.Env):
         def _yaw_from_pose(pose):
             return np.array([pose.rotation.as_euler("xyz", degrees=False)[-1]])
 
+        # ================== 新增：提取触觉信号 ==================
+        # 确定末端执行器的 ID（如果没有 end_effector 则使用本体的 effector_link）
+        if self._robot.end_effector:
+            effector_id = self._robot.end_effector
+        else:
+            effector_id = self._robot.xarm
+            
+        block_id = self._block_ids[0]
+        
+        # 调用物理引擎获取两者的接触点信息
+        contacts = self._pybullet_client.getContactPoints(bodyA=effector_id, bodyB=block_id)
+        
+        normal_force = 0.0
+        friction_force = 0.0
+        
+        if len(contacts) > 0:
+            for point in contacts:
+                normal_force += point[9]  # point[9] 是法向力 (Normal Force)
+                # point[10] 和 point[12] 是两个切向的摩擦力
+                friction_force += abs(point[10]) + abs(point[12])
+                
+        # 组装为一个 2D 向量 [法向力, 摩擦力]
+        tactile_force = np.array([normal_force, friction_force], dtype=np.float32)
+        # ========================================================
+
         obs = collections.OrderedDict(
             block_translation=block_pose.translation[0:2],
             block_orientation=_yaw_from_pose(block_pose),
@@ -500,6 +525,7 @@ class BlockPush(gym.Env):
             effector_target_translation=self._target_effector_pose.translation[0:2],
             target_translation=self._target_pose.translation[0:2],
             target_orientation=_yaw_from_pose(self._target_pose),
+            tactile_force=tactile_force, # <--- 将触觉信号加入字典！
         )
         if self._image_size is not None:
             obs["rgb"] = self._render_camera(self._image_size)
