@@ -856,6 +856,8 @@ class BlockPushNormalized(gym.Env):
                     low=-1, high=1, shape=(2,)
                 ),
                 target_orientation_cos_sin=spaces.Box(low=-1, high=1, shape=(2,)),
+                # === 新增：保持原样透传，不归一化触觉，方便后续查阅真实物理值 ===
+                tactile_force=spaces.Box(low=0, high=1000, shape=(2,), dtype=np.float32),
             )
         )
         self.reset()
