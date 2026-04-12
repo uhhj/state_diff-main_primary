@@ -699,18 +699,18 @@ class BlockPush(gym.Env):
 
         return color.astype(np.uint8)
 
-    def _create_observation_space(self, image_size):
+def _create_observation_space(self, image_size):
         pi2 = math.pi * 2
 
         obs_dict = collections.OrderedDict(
             block_translation=spaces.Box(low=-5, high=5, shape=(2,)),  # x,y
             block_orientation=spaces.Box(low=-pi2, high=pi2, shape=(1,)),  # phi
             effector_translation=spaces.Box(
-                low=self.workspace_bounds[0] - 0.1,  # Small buffer for to IK noise.
+                low=self.workspace_bounds[0] - 0.1,  
                 high=self.workspace_bounds[1] + 0.1,
             ),  # x,y
             effector_target_translation=spaces.Box(
-                low=self.workspace_bounds[0] - 0.1,  # Small buffer for to IK noise.
+                low=self.workspace_bounds[0] - 0.1,  
                 high=self.workspace_bounds[1] + 0.1,
             ),  # x,y
             target_translation=spaces.Box(low=-5, high=5, shape=(2,)),  # x,y
@@ -719,6 +719,9 @@ class BlockPush(gym.Env):
                 high=pi2,
                 shape=(1,),
             ),  # theta
+            # ================= 新增：定义触觉空间 =================
+            tactile_force=spaces.Box(low=0, high=1000, shape=(2,), dtype=np.float32),
+            # =====================================================
         )
         if image_size is not None:
             obs_dict["rgb"] = spaces.Box(
