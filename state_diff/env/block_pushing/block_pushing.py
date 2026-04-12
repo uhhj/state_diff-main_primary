@@ -951,6 +951,7 @@ class BlockPushNormalized(gym.Env):
             block_orientation_cos_sin=block_orientation_cos_sin,
             effector_target_to_target_translation=effector_target_to_target_translation,
             target_orientation_cos_sin=target_orientation_cos_sin,
+            tactile_force=state.get("tactile_force", np.array([0., 0.], dtype=np.float32)),
         )
 
     @classmethod
