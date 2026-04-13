@@ -947,6 +947,7 @@ class BlockPushNormalized(gym.Env):
 
         # Note: We do not include effector_translation in the normalized state.
         # This means the unnormalized -> normalized mapping is not invertable.
+# === 这是 calc_normalized_state 的结尾（大约在 650 行） ===
         return collections.OrderedDict(
             effector_target_translation=effector_target_translation,
             effector_target_to_block_translation=effector_target_to_block_translation,
