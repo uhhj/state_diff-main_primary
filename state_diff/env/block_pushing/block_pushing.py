@@ -699,7 +699,7 @@ class BlockPush(gym.Env):
 
         return color.astype(np.uint8)
 
-def _create_observation_space(self, image_size):
+    def _create_observation_space(self, image_size):
         pi2 = math.pi * 2
 
         obs_dict = collections.OrderedDict(
