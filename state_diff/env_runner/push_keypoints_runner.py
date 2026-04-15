@@ -19,6 +19,35 @@ from state_diff.policy.base_lowdim_policy import BaseLowdimPolicy
 from state_diff.common.pytorch_util import dict_apply
 from state_diff.env_runner.base_lowdim_runner import BaseLowdimRunner
 
+def check_physical_violation(pred_seq, hand_radius=0.03, block_radius=0.02, max_frame_disp=0.1):
+    """
+    pred_seq: np.ndarray of shape [T_p, state_dim]
+    检测预测状态序列中的物理违规
+    """
+    violations = {'overlap': 0, 'teleport': 0, 'ghost_push': 0}
+    T = pred_seq.shape[0]
+    contact_threshold = hand_radius + block_radius
+
+    for t in range(T):
+        hand = pred_seq[t, 0:2]
+        block = pred_seq[t, 2:4]
+        dist = np.linalg.norm(hand - block)
+
+        # 穿模
+        if dist < contact_threshold:
+            violations['overlap'] += 1
+
+        if t > 0:
+            block_move = np.linalg.norm(block - pred_seq[t-1, 2:4])
+            # 瞬移
+            if block_move > max_frame_disp:
+                violations['teleport'] += 1
+            # 隔空移物
+            if block_move > 0.01 and dist > contact_threshold * 1.5:
+                violations['ghost_push'] += 1
+
+    return violations
+
 class PushKeypointsRunner(BaseLowdimRunner):
     def __init__(self,
             output_dir,
@@ -204,6 +233,7 @@ class PushKeypointsRunner(BaseLowdimRunner):
         all_video_paths = [None] * n_inits
         all_rewards = [None] * n_inits
         all_infos = [None] * n_inits
+        all_violations = [None] * n_inits  # 新增
 
         for chunk_idx in range(n_chunks):
             start = chunk_idx * n_envs
@@ -252,6 +282,14 @@ class PushKeypointsRunner(BaseLowdimRunner):
                 # run policy
                 with torch.no_grad():
                     action_dict = policy.predict_action(obs_dict)
+                # ========== 新增：物理违规检测 ==========
+                pred_state_seq = action_dict.get('deno_trajectories', None)
+                if pred_state_seq is not None:
+                    pred_state_np = pred_state_seq.detach().cpu().numpy()  # shape: [batch, T_p, state_dim]
+                    for env_idx in range(this_n_active_envs):
+                        global_idx = start + env_idx
+                        violations = check_physical_violation(pred_state_np[env_idx])
+                        all_violations[global_idx] = violations
 
                 action_dict.pop('deno_trajectories', None)
 
@@ -318,4 +356,23 @@ class PushKeypointsRunner(BaseLowdimRunner):
             log_data[f"{prefix}success_rate"] = mean_success
 
 
+        # 汇总违规统计
+        total_overlap = 0
+        total_teleport = 0
+        total_ghost = 0
+        valid_count = 0
+
+        for v in all_violations:
+            if v is not None:
+                total_overlap += v['overlap']
+                total_teleport += v['teleport']
+                total_ghost += v['ghost_push']
+                valid_count += 1
+
+        if valid_count > 0:
+            T_p = 16  # 预测序列长度，根据你的配置 horizon=16
+            total_frames = valid_count * T_p
+            log_data['violation/overlap_rate'] = total_overlap / total_frames
+            log_data['violation/teleport_rate'] = total_teleport / total_frames
+            log_data['violation/ghost_push_rate'] = total_ghost / total_frames
         return log_data
